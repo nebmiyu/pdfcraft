@@ -1,0 +1,93 @@
+# PdfCraft für Windows bauen (unsigniert) – eigenständiger Workflow für einen eigenen Fork.
+#
+# Ablage im Fork:  .github/workflows/pdfcraft-windows.yml
+# Start:           GitHub ▸ Actions ▸ "PdfCraft Windows (unsigned)" ▸ Run workflow
+# Ergebnis:        Artefakt "pdfcraft-windows-x64" mit
+#                    pdfcraft-<version>-windows-x64.msi            (Installer, WiX v5)
+#                    pdfcraft-<version>-windows-x64-portable.zip   (pdfcraft.exe + CLI + OCR-Modelle)
+#
+# Ohne Signatur-Secrets lässt packaging/windows/sign.ps1 die Dateien unsigniert (nur Warnung).
+# SmartScreen zeigt beim ersten Start eine Warnung ("Trotzdem ausführen"); das ist bei unsignierten
+# Builds normal. Für signierte Builds: WINDOWS_CERTIFICATE (+ _PASSWORD) oder die AZURE_*-Secrets
+# aus dem Upstream-Workflow setzen.
+name: PdfCraft Windows (unsigned)
+
+on:
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: "Zielarchitektur"
+        type: choice
+        default: x64
+        options: [x64, arm64]
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows ${{ inputs.arch }}
+    # arm64 baut nativ auf GitHubs Arm-Runner (für öffentliche Repos kostenlos).
+    runs-on: ${{ inputs.arch == 'arm64' && 'windows-11-arm' || 'windows-latest' }}
+    timeout-minutes: 120
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_INCREMENTAL: 0
+      RUST_BACKTRACE: 1
+      # Gleiche Pins wie Upstream (.github/workflows/release.yml bzw. craft-i18n.rev).
+      CRAFT_FONTS_REF: b076417b5880bd4154bd22f00695b1d28c6bea83
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Check out craft-fonts (CJK-/Arabisch-Schriften)
+        uses: actions/checkout@v4
+        with:
+          repository: storytold/craft-fonts
+          ref: ${{ env.CRAFT_FONTS_REF }}
+          path: craft-fonts
+          persist-credentials: false
+
+      - name: Read craft-i18n pin
+        id: i18n
+        shell: bash
+        run: echo "rev=$(tr -d '[:space:]' < craft-i18n.rev)" >> "$GITHUB_OUTPUT"
+
+      - name: Check out craft-i18n (Übersetzungen, u. a. Deutsch)
+        uses: actions/checkout@v4
+        with:
+          repository: storytold/craft-i18n
+          ref: ${{ steps.i18n.outputs.rev }}
+          path: craft-i18n
+          persist-credentials: false
+
+      - name: Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ inputs.arch == 'arm64' && 'aarch64-pc-windows-msvc' || 'x86_64-pc-windows-msvc' }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: pdfcraft-windows-${{ inputs.arch }}
+
+      - name: Install WiX 5.0.2 + UI/Util extensions
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix --version 5.0.2
+          wix extension add -g WixToolset.UI.wixext/5.0.2 WixToolset.Util.wixext/5.0.2
+
+      - name: Build + package (packaging/windows/package.ps1)
+        shell: pwsh
+        env:
+          CRAFT_FONTS_DIR: ${{ github.workspace }}/craft-fonts
+          CRAFT_FONTS_REQUIRED: "1"
+          CRAFT_I18N_DIR: ${{ github.workspace }}/craft-i18n
+          CRAFT_I18N_REQUIRED: "1"
+        run: ./packaging/windows/package.ps1 -Arch ${{ inputs.arch }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pdfcraft-windows-${{ inputs.arch }}
+          path: dist/release/*
+          if-no-files-found: error
