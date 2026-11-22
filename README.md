@@ -1,11 +1,13 @@
-<p align="center">
-  <a href="https://getartcraft.com/">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="docs/brand/artcraft-logo-white.svg">
-      <img alt="ArtCraft" src="docs/brand/artcraft-logo.svg" width="200">
-    </picture>
-  </a>
-</p>
+# voss-solutions PDF Pro
+
+**voss-solutions PDF Pro** is a renamed build of [PdfCraft](https://github.com/storytold/pdfcraft),
+the open-source PDF workbench by the ArtCraft team (MIT OR Apache-2.0), published by
+[voss-solutions](https://www.voss-solutions.ch). The ArtCraft name and logos are not part of this
+build; the documentation below is PdfCraft's and still uses that name. The code keeps its
+internal `pdfcraft` names (crates, executables, settings folders).
+
+---
+
 
 
 <p align="center">
@@ -79,7 +81,7 @@ PdfCraft is part of [ArtCraft](https://getartcraft.com). Come say hello, get hel
 - **Web page:** [getartcraft.com/apps/pdfcraft](https://getartcraft.com/apps/pdfcraft)
 - **Source:** [github.com/storytold/pdfcraft](https://github.com/storytold/pdfcraft)
 
-The ArtCraft name and logos in `docs/brand/` are trademarks of the ArtCraft Team and are not open source. They may be used only unmodified, and only as part of PdfCraft (see `docs/brand/LICENSE-brand.txt`). Forks and modified versions must remove them.
+The ArtCraft name and logos are trademarks of the ArtCraft Team and are not part of this renamed build.
 
 ## Highlights
 
