@@ -32,6 +32,9 @@ function Set-SessionProperty($Session, [string] $Name, [string] $Value) {
 function Get-SessionProperty($Session, [string] $Name) {
   $Session.GetType().InvokeMember('Property', 'GetProperty', $null, $Session, @($Name))
 }
+# A Directory table DefaultDir is "short|long" when the long name is not a valid 8.3 name
+# ("VOSS-S~1|voss-solutions"); compare the long name.
+function Get-LongName([string] $DefaultDir) { ($DefaultDir -split '\|')[-1] }
 function Get-PackageTemplate($Database) {
   # Summary information property 7 is the platform: "Intel;1033", "x64;1033" or "Arm64;1033".
   $summary = $Database.GetType().InvokeMember('SummaryInformation', 'GetProperty', $null, $Database, @(0))
@@ -55,9 +58,9 @@ try {
     if ($properties['UpgradeCode'].Trim('{}') -ne $policy.upgradeCode) { throw 'Launcher upgrade identity changed.' }
     $dirs = @{}
     foreach ($row in (Read-Rows $database 'SELECT `Directory`, `Directory_Parent`, `DefaultDir` FROM `Directory`' 3)) { $dirs[$row[0]] = @($row[1],$row[2]) }
-    if ($dirs['INSTALLFOLDER'][0] -ne 'CraftSuiteFolder' -or $dirs['CraftSuiteFolder'][1] -ne 'voss-solutions' -or
+    if ($dirs['INSTALLFOLDER'][0] -ne 'CraftSuiteFolder' -or (Get-LongName $dirs['CraftSuiteFolder'][1]) -ne 'voss-solutions' -or
         $dirs['CraftSuiteFolder'][0] -ne 'LocalProgramsFolder' -or $dirs['LocalProgramsFolder'][0] -ne 'LocalAppDataFolder') {
-      throw 'Launcher new-install folder must be under the per-user ArtCraft suite root.'
+      throw 'Launcher new-install folder must be under the per-user voss-solutions suite root.'
     }
     foreach ($explicit in @('', 'F:\Chosen exact launcher')) {
       Set-SessionProperty $session 'PREVIOUSINSTALLFOLDER' 'E:\Existing exact launcher'
@@ -88,7 +91,7 @@ try {
     $directories[$row[0]] = @($row[1], $row[2])
   }
   if ($directories['INSTALLFOLDER'][0] -ne 'CraftSuiteFolder' -or
-      $directories['CraftSuiteFolder'][1] -ne 'voss-solutions') { throw 'Expected the app under the ArtCraft suite folder.' }
+      (Get-LongName $directories['CraftSuiteFolder'][1]) -ne 'voss-solutions') { throw 'Expected the app under the voss-solutions suite folder.' }
   $programs = $directories['CraftSuiteFolder'][0]
   if ($programs -eq 'ProgramFiles6432Folder') { $programs = $directories[$programs][0] }
   if ($programs -notin 'ProgramFilesFolder', 'ProgramFiles64Folder') {
